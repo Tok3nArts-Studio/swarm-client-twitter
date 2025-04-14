@@ -94,6 +94,25 @@ interface PendingTweet {
   timestamp: number;
 }
 
+interface SwarmTask {
+  tweet?: Tweet;
+  _is_swarm_task: boolean;
+
+  ///////////////
+  id: number;
+  order_id: number;
+  tweet_id: string;
+  actor_id: number;
+  action: "like" | "retweet" | "reply" | "quote";
+  status: "scheduled" | "assigned" | "completed" | "failed";
+  wave_start: string;
+  wave_end: string;
+  scheduled_time: string;
+  reply_content?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 type PendingTweetApprovalStatus = "PENDING" | "APPROVED" | "REJECTED";
 
 export class TwitterPostClient {
@@ -123,6 +142,15 @@ export class TwitterPostClient {
     this.runtime = runtime;
     this.twitterUsername = this.client.twitterConfig.TWITTER_USERNAME;
     this.isDryRun = this.client.twitterConfig.TWITTER_DRY_RUN;
+    this.swarmActorConfig = {
+      actorId:
+        this.runtime.character?.settings?.twitterClient?.swarmActorConfig
+          ?.actorId ||
+        parseInt(this.client.twitterConfig.SWARM_ACTOR_ID || "0"),
+      apiKey:
+        this.runtime.character?.settings?.twitterClient?.swarmActorConfig
+          ?.apiKey || this.client.twitterConfig.SWARM_API_KEY,
+    };
     // Explicit debug for approval provider
     const rawApprovalProvider = process.env.TWITTER_APPROVAL_PROVIDER;
     elizaLogger.debug(
@@ -151,8 +179,15 @@ export class TwitterPostClient {
       `- Post Interval: ${this.client.twitterConfig.POST_INTERVAL_MIN}-${this.client.twitterConfig.POST_INTERVAL_MAX} minutes`
     );
     elizaLogger.log(
-      `- Action Processing: ${
-        this.client.twitterConfig.ENABLE_ACTION_PROCESSING
+      `- Timeline Action Processing: ${
+        this.client.twitterConfig.ENABLE_TIMELINE_ACTION_PROCESSING
+          ? "enabled"
+          : "disabled"
+      }`
+    );
+    elizaLogger.log(
+      `- Swarm Action Processing: ${
+        this.client.twitterConfig.ENABLE_TIMELINE_ACTION_PROCESSING
           ? "enabled"
           : "disabled"
       }`
@@ -180,6 +215,16 @@ export class TwitterPostClient {
     if (this.isDryRun) {
       elizaLogger.log(
         "Twitter client initialized in dry run mode - no actual tweets will be posted"
+      );
+    }
+
+    const { SWARM_SUPABASE_URL, SWARM_SUPABASE_ANON_KEY } =
+      this.client.twitterConfig;
+
+    if (SWARM_SUPABASE_URL && SWARM_SUPABASE_ANON_KEY) {
+      this.supabaseClient = createClient(
+        SWARM_SUPABASE_URL,
+        SWARM_SUPABASE_ANON_KEY
       );
     }
 
@@ -348,6 +393,64 @@ export class TwitterPostClient {
     }
   }
 
+  get swarmConfigCacheKey() {
+    return `twitter/${this.twitterUsername}/swarmConfig`;
+  }
+
+  async getSwarmTasks(): Promise<SwarmTask[]> {
+    const swarmConfig = await this.runtime.cacheManager.get<{
+      cursorCount: number;
+    }>(this.swarmConfigCacheKey);
+
+    const lastTaskId: number = swarmConfig?.cursorCount || 0;
+
+    const { SWARM_SUPABASE_URL, SWARM_SUPABASE_ANON_KEY } =
+      this.client.twitterConfig;
+
+    try {
+      const FUNCTIONS_URL = SWARM_SUPABASE_URL + "/functions/v1";
+      const body = JSON.stringify({
+        actor_id: this.swarmActorConfig.actorId,
+        api_key: this.swarmActorConfig.apiKey,
+        last_task_id: lastTaskId,
+      });
+
+      const getTasksResult = await fetch(`${FUNCTIONS_URL}/get-tasks`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${SWARM_SUPABASE_ANON_KEY}`,
+        },
+        body,
+      });
+
+      const data = await getTasksResult.json();
+
+      elizaLogger.log(`Fetched tasks: ${JSON.stringify(data.tasks, null, 2)}`);
+
+      const tweetIds = new Set<string>(data.tasks.map((task) => task.tweet_id));
+
+      const tweetsMap = new Map<string, Tweet>();
+
+      for (const tweetId of Array.from(tweetIds)) {
+        const tweet = await this.client.twitterClient.getTweet(tweetId);
+        if (tweet) {
+          tweetsMap.set(tweetId, tweet);
+        }
+      }
+
+      return data.tasks.map((task) => {
+        return {
+          ...task,
+          tweet: tweetsMap.get(task.tweet_id),
+          _is_swarm_task: true, // Hidden field to recognize task instance
+        };
+      });
+    } catch (error) {
+      elizaLogger.error("Error fetching swarm tasks:", error);
+      return [];
+    }
+  }
   /**
    * Sends a tweet for verification through the Raiinmaker system
    *
@@ -920,7 +1023,10 @@ export class TwitterPostClient {
         elizaLogger.log("Tweet generation loop started");
       }
 
-      if (this.client.twitterConfig.ENABLE_ACTION_PROCESSING) {
+      if (
+        this.client.twitterConfig.ENABLE_TIMELINE_ACTION_PROCESSING ||
+        this.client.twitterConfig.ENABLE_SWARM_ACTION_PROCESSING
+      ) {
         processActionsLoop().catch((error) => {
           elizaLogger.error("Fatal error in process actions loop:", error);
         });
@@ -1431,18 +1537,32 @@ export class TwitterPostClient {
         "twitter"
       );
 
-      const timelines = await this.client.fetchTimelineForActions(
-        MAX_TIMELINES_TO_FETCH
-      );
+      const [timelines, swarmTasks] = await Promise.all([
+        this.client.fetchTimelineForActions(MAX_TIMELINES_TO_FETCH),
+        this.getSwarmTasks(),
+      ]);
+
+      elizaLogger.log("swarmTasks", swarmTasks);
+
       const maxActionsProcessing =
         this.client.twitterConfig.MAX_ACTIONS_PROCESSING;
       const processedTimelines = [];
 
-      for (const tweet of timelines) {
+      for (const item of [...swarmTasks, ...timelines]) {
+        const isSwarmTask = "_is_swarm_task" in item;
+        const { tweet } = isSwarmTask ? item : { tweet: item };
+
+        const swarmOrderId = isSwarmTask ? item.id : null;
         try {
           // Skip if we've already processed this tweet
+          const memoryIdKey =
+            (swarmOrderId ? "swarm - " + swarmOrderId + "-" : "") +
+            tweet.id +
+            "-" +
+            this.runtime.agentId;
+
           const memory = await this.runtime.messageManager.getMemoryById(
-            stringToUuid(tweet.id + "-" + this.runtime.agentId)
+            stringToUuid(memoryIdKey)
           );
           if (memory) {
             elizaLogger.log(`Already processed tweet ID: ${tweet.id}`);
@@ -1450,7 +1570,9 @@ export class TwitterPostClient {
           }
 
           const roomId = stringToUuid(
-            tweet.conversationId + "-" + this.runtime.agentId
+            swarmOrderId
+              ? `swarm - ${swarmOrderId}`
+              : tweet.conversationId + "-" + this.runtime.agentId
           );
 
           const tweetState = await this.runtime.composeState(
@@ -1463,21 +1585,37 @@ export class TwitterPostClient {
             {
               twitterUserName: this.twitterUsername,
               currentTweet: `ID: ${tweet.id}\nFrom: ${tweet.name} (@${tweet.username})\nText: ${tweet.text}`,
+              swarmOrderId,
             }
           );
 
-          const actionContext = composeContext({
-            state: tweetState,
-            template:
-              this.runtime.character.templates?.twitterActionTemplate ||
-              twitterActionTemplate,
-          });
+          const actionContext = swarmOrderId
+            ? ""
+            : composeContext({
+                state: tweetState,
+                template:
+                  this.runtime.character.templates?.twitterActionTemplate ||
+                  twitterActionTemplate,
+              });
 
-          const actionResponse = await generateTweetActions({
-            runtime: this.runtime,
-            context: actionContext,
-            modelClass: ModelClass.SMALL,
-          });
+          let actionResponse: ActionResponse;
+
+          if (swarmOrderId) {
+            const task: SwarmTask = item as SwarmTask;
+            actionResponse = {
+              like: task.action === "like",
+              // bookmark: swarmActions?.bookmark || false,
+              retweet: task.action === "retweet",
+              quote: task.action === "quote",
+              reply: task.action === "reply",
+            };
+          } else {
+            actionResponse = await generateTweetActions({
+              runtime: this.runtime,
+              context: actionContext,
+              modelClass: ModelClass.SMALL,
+            });
+          }
 
           if (!actionResponse) {
             elizaLogger.log(`No valid actions generated for tweet ${tweet.id}`);
@@ -1488,6 +1626,7 @@ export class TwitterPostClient {
             actionResponse: actionResponse,
             tweetState: tweetState,
             roomId: roomId,
+            swarmOrderId,
           });
         } catch (error) {
           elizaLogger.error(`Error processing tweet ${tweet.id}:`, error);
@@ -1497,6 +1636,17 @@ export class TwitterPostClient {
 
       const sortProcessedTimeline = (arr: typeof processedTimelines) => {
         return arr.sort((a, b) => {
+          const swarmOrderIdA = a.swarmOrderId;
+          const swarmOrderIdB = b.swarmOrderId;
+
+          // Swarm tasks are at the top of the list
+          // so we sort them by swarm order ID
+          if (swarmOrderIdA || swarmOrderIdB) {
+            return (
+              (swarmOrderIdA || Number.MAX_SAFE_INTEGER) -
+              (swarmOrderIdB || Number.MAX_SAFE_INTEGER)
+            );
+          }
           // Count the number of true values in the actionResponse object
           const countTrue = (obj: typeof a.actionResponse) =>
             Object.values(obj).filter(Boolean).length;
@@ -1548,6 +1698,7 @@ export class TwitterPostClient {
       actionResponse: ActionResponse;
       tweetState: State;
       roomId: UUID;
+      swarmOrderId: number | null;
     }[]
   ): Promise<
     {
@@ -1558,7 +1709,8 @@ export class TwitterPostClient {
   > {
     const results = [];
     for (const timeline of timelines) {
-      const { actionResponse, tweetState, roomId, tweet } = timeline;
+      const { actionResponse, tweetState, roomId, tweet, swarmOrderId } =
+        timeline;
       try {
         const executedActions: string[] = [];
         // Execute actions
@@ -1750,6 +1902,13 @@ export class TwitterPostClient {
             embedding: getEmbeddingZeroVector(),
             createdAt: tweet.timestamp * 1000,
           });
+
+          if (swarmOrderId) {
+            elizaLogger.log(`Processed swarm order ${swarmOrderId}`);
+            await this.runtime.cacheManager.set(this.swarmConfigCacheKey, {
+              cursorCount: swarmOrderId,
+            });
+          }
         }
 
         results.push({

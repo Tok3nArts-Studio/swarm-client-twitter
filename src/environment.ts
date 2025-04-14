@@ -37,6 +37,10 @@ export const twitterEnvSchema = z.object({
   TWITTER_RETRY_LIMIT: z.number().int(),
   TWITTER_POLL_INTERVAL: z.number().int(),
   TWITTER_TARGET_USERS: z.array(twitterUsernameSchema).default([]),
+  SWARM_SUPABASE_URL: z.string().optional(),
+  SWARM_SUPABASE_ANON_KEY: z.string().optional(),
+  SWARM_ACTOR_ID: z.string().optional(),
+  SWARM_API_KEY: z.string().optional(),
   // I guess it's possible to do the transformation with zod
   // not sure it's preferable, maybe a readability issue
   // since more people will know js/ts than zod
@@ -68,7 +72,8 @@ export const twitterEnvSchema = z.object({
   ENABLE_TWITTER_POST_GENERATION: z.boolean(),
   POST_INTERVAL_MIN: z.number().int(),
   POST_INTERVAL_MAX: z.number().int(),
-  ENABLE_ACTION_PROCESSING: z.boolean(),
+  ENABLE_TIMELINE_ACTION_PROCESSING: z.boolean(),
+  ENABLE_SWARM_ACTION_PROCESSING: z.boolean(),
   ACTION_INTERVAL: z.number().int(),
   POST_IMMEDIATELY: z.boolean(),
   TWITTER_SPACES_ENABLE: z.boolean().default(false),
@@ -197,11 +202,19 @@ export async function validateTwitterConfig(
       ),
 
       // bool
-      ENABLE_ACTION_PROCESSING:
+      ENABLE_TIMELINE_ACTION_PROCESSING:
         parseBooleanFromText(
-          runtime.getSetting("ENABLE_ACTION_PROCESSING") ||
-            process.env.ENABLE_ACTION_PROCESSING
+          runtime.getSetting("ENABLE_TIMELINE_ACTION_PROCESSING") ||
+            process.env.ENABLE_TIMELINE_ACTION_PROCESSING
         ) ?? false,
+      ENABLE_SWARM_ACTION_PROCESSING:
+        parseBooleanFromText(
+          runtime.getSetting("ENABLE_SWARM_ACTION_PROCESSING") ||
+            process.env.ENABLE_SWARM_ACTION_PROCESSING
+        ) ?? false,
+
+      SWARM_ACTOR_ID: runtime.getSetting("SWARM_ACTOR_ID") || "",
+      SWARM_API_KEY: runtime.getSetting("SWARM_API_KEY") || "",
 
       // init in minutes (min 1m)
       ACTION_INTERVAL: safeParseInt(
@@ -230,6 +243,13 @@ export async function validateTwitterConfig(
       ACTION_TIMELINE_TYPE:
         runtime.getSetting("ACTION_TIMELINE_TYPE") ||
         process.env.ACTION_TIMELINE_TYPE,
+
+      SWARM_SUPABASE_URL:
+        runtime.getSetting("SWARM_SUPABASE_URL") ||
+        process.env.SWARM_SUPABASE_URL,
+      SWARM_SUPABASE_ANON_KEY:
+        runtime.getSetting("SWARM_SUPABASE_ANON_KEY") ||
+        process.env.SWARM_SUPABASE_ANON_KEY,
     };
 
     return twitterEnvSchema.parse(twitterConfig);
