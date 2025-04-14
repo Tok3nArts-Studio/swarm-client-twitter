@@ -1,5 +1,5 @@
 {
-  "name": "@aminlatifi/client-twitter-swarm",
+  "name": "@aminlatifi/swarm-client-twitter",
   "version": "0.25.6-alpha.1",
   "type": "module",
   "main": "dist/index.js",
