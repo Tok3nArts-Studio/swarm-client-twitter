@@ -31,6 +31,7 @@
   },
   "scripts": {
     "build": "tsup --format esm --dts",
+    "postinstall": "pnpm add \"@elizaos/core@workspace:*\" --filter ./packages/swarm-client-twitter",
     "dev": "tsup --format esm --dts --watch",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage"
