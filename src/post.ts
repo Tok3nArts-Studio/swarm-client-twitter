@@ -1291,6 +1291,9 @@ export class TwitterPostClient {
           twitterPostTemplate,
       });
 
+      elizaLogger.debug("Generating text for new tweet...");
+      elizaLogger.debug("Context:", context);
+
       const response = await generateText({
         runtime: this.runtime,
         context,
