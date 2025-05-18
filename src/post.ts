@@ -169,6 +169,25 @@ export class TwitterPostClient {
       `- Dry Run Mode: ${this.isDryRun ? "enabled" : "disabled"}`
     );
     elizaLogger.log(
+      `- Disable Post: ${
+        this.client.twitterConfig.TWITTER_DISABLE_POST ? "enabled" : "disabled"
+      }`
+    );
+    elizaLogger.log(
+      `- Disable Topic Search: ${
+        this.client.twitterConfig.TWITTER_DISABLE_TOPIC_SEARCH
+          ? "enabled"
+          : "disabled"
+      }`
+    );
+    elizaLogger.log(
+      `- Disable Timeline Search: ${
+        this.client.twitterConfig.TWITTER_DISABLE_TIMELINE_SEARCH
+          ? "enabled"
+          : "disabled"
+      }`
+    );
+    elizaLogger.log(
       `- Enable Post: ${
         this.client.twitterConfig.ENABLE_TWITTER_POST_GENERATION
           ? "enabled"
@@ -954,6 +973,11 @@ export class TwitterPostClient {
    */
   async start() {
     try {
+      if (this.client.twitterConfig.TWITTER_DISABLE_POST) {
+        elizaLogger.log("Twitter post generation is disabled");
+        return;
+      }
+
       // Force Discord client to null for RAIINMAKER provider
       if (this.approvalProvider?.toUpperCase() === "RAIINMAKER") {
         elizaLogger.debug(

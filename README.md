@@ -39,6 +39,11 @@ TWITTER_RETRY_LIMIT=5      # Login retry attempts
 TWITTER_POLL_INTERVAL=120  # Poll interval in seconds
 TWITTER_TARGET_USERS=      # Comma-separated list of target users
 
+# Disable features
+TWITTER_DISABLE_POST=false # Disable post generation
+TWITTER_DISABLE_TOPIC_SEARCH=false # Disable topic search
+TWITTER_DISABLE_TIMELINE_SEARCH=false # Disable timeline search
+
 # Post Generation Settings
 ENABLE_TWITTER_POST_GENERATION=true
 POST_INTERVAL_MIN=90       # Minimum interval between posts (minutes)
@@ -66,9 +71,9 @@ TWITTER_APPROVAL_CHECK_INTERVAL=300000  # 5 minutes in milliseconds
 import { TwitterClientInterface } from "@elizaos/twitter";
 
 const twitterPlugin = {
-    name: "twitter",
-    description: "Twitter client",
-    clients: [TwitterClientInterface],
+  name: "twitter",
+  description: "Twitter client",
+  clients: [TwitterClientInterface],
 };
 
 // Register with your Eliza runtime
@@ -80,6 +85,7 @@ runtime.registerPlugin(twitterPlugin);
 ### Post Generation
 
 The client can automatically generate and post tweets based on your agent's character profile and topics. Posts can be:
+
 - Regular tweets (≤280 characters)
 - Long-form tweets (Note Tweets)
 - Media tweets (with images/videos)
@@ -87,6 +93,7 @@ The client can automatically generate and post tweets based on your agent's char
 ### Interactions
 
 Handles:
+
 - Mentions
 - Replies
 - Quote tweets
@@ -99,6 +106,7 @@ When enabled, periodically searches Twitter for relevant topics and engages with
 ### Twitter Spaces
 
 Supports creating and managing Twitter Spaces with:
+
 - Speech-to-Text (STT) for transcription
 - Text-to-Speech (TTS) via ElevenLabs
 - Speaker management
@@ -108,6 +116,7 @@ Supports creating and managing Twitter Spaces with:
 ### Approval Workflow
 
 Optional Discord-based approval system for tweets:
+
 1. Generated tweets are sent to a Discord channel
 2. Moderators can approve/reject via reactions
 3. Approved tweets are automatically posted
@@ -127,16 +136,19 @@ DEBUG=eliza:* pnpm start
 ### Common Issues
 
 #### Login Failures
+
 - Verify credentials in .env
 - Check 2FA configuration
 - Ensure no rate limiting
 
 #### Post Generation Issues
+
 - Verify character profile configuration
 - Check MAX_TWEET_LENGTH setting
 - Monitor approval workflow logs
 
 #### Spaces Issues
+
 - Verify ELEVENLABS_XI_API_KEY if using TTS
 - Check space configuration in character profile
 - Monitor idle timeout settings
@@ -151,8 +163,9 @@ DEBUG=eliza:* pnpm start
 ## Support
 
 For issues or questions:
+
 1. Check the Common Issues section
-2. Review debug logs (enable with DEBUG=eliza:*)
+2. Review debug logs (enable with DEBUG=eliza:\*)
 3. Open an issue with:
    - Error messages
    - Configuration details

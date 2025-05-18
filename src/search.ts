@@ -1,4 +1,4 @@
-import { SearchMode } from "agent-twitter-client";
+import { QueryTweetsResponse, SearchMode, Tweet } from "agent-twitter-client";
 import { composeContext, elizaLogger } from "@elizaos/core";
 import { generateMessageResponse, generateText } from "@elizaos/core";
 import { messageCompletionFooter } from "@elizaos/core";
@@ -55,6 +55,14 @@ export class TwitterSearchClient {
   }
 
   async start() {
+    if (
+      this.client.twitterConfig.TWITTER_DISABLE_TOPIC_SEARCH &&
+      this.client.twitterConfig.TWITTER_DISABLE_TIMELINE_SEARCH
+    ) {
+      elizaLogger.log("Twitter topic and timeline search are disabled");
+      return;
+    }
+
     this.engageWithSearchTermsLoop();
   }
 
@@ -72,22 +80,38 @@ export class TwitterSearchClient {
 
   private async engageWithSearchTerms() {
     elizaLogger.log("Engaging with search terms");
+    const topicSearchDisabled =
+      this.client.twitterConfig.TWITTER_DISABLE_TOPIC_SEARCH;
+    const timelineSearchDisabled =
+      this.client.twitterConfig.TWITTER_DISABLE_TIMELINE_SEARCH;
+
     try {
+      let recentTweets: QueryTweetsResponse = { tweets: [] };
       const searchTerm = [...this.runtime.character.topics][
         Math.floor(Math.random() * this.runtime.character.topics.length)
       ];
 
-      elizaLogger.log("Fetching search tweets");
-      // TODO: we wait 5 seconds here to avoid getting rate limited on startup, but we should queue
-      await new Promise((resolve) => setTimeout(resolve, 5000));
-      const recentTweets = await this.client.fetchSearchTweets(
-        searchTerm,
-        20,
-        SearchMode.Top
-      );
-      elizaLogger.log("Search tweets fetched");
+      if (topicSearchDisabled) {
+        elizaLogger.log("Topic search is disabled");
+      } else {
+        elizaLogger.log("Fetching search tweets");
+        // TODO: we wait 5 seconds here to avoid getting rate limited on startup, but we should queue
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+        recentTweets = await this.client.fetchSearchTweets(
+          searchTerm,
+          20,
+          SearchMode.Top
+        );
+        elizaLogger.log("Search tweets fetched");
+      }
 
-      const homeTimeline = await this.client.fetchHomeTimeline(50);
+      let homeTimeline: Tweet[] = [];
+
+      if (timelineSearchDisabled) {
+        elizaLogger.log("Timeline search is disabled");
+      } else {
+        homeTimeline = await this.client.fetchHomeTimeline(50);
+      }
 
       await this.client.cacheTimeline(homeTimeline);
 
@@ -108,12 +132,12 @@ export class TwitterSearchClient {
         .sort(() => Math.random() - 0.5)
         .slice(0, 20);
 
-      if (slicedTweets.length === 0) {
+      if (!topicSearchDisabled && slicedTweets.length === 0) {
         elizaLogger.log(
           "No valid tweets found for the search term",
           searchTerm
         );
-        return;
+        // return;
       }
 
       const prompt = `
