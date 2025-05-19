@@ -417,6 +417,10 @@ export class TwitterPostClient {
   }
 
   async getSwarmTasks(): Promise<SwarmTask[]> {
+    if (!this.client.twitterConfig.ENABLE_SWARM_ACTION_PROCESSING) {
+      return [];
+    }
+
     const swarmConfig = await this.runtime.cacheManager.get<{
       cursorCount: number;
     }>(this.swarmConfigCacheKey);
