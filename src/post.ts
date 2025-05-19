@@ -206,7 +206,7 @@ export class TwitterPostClient {
     );
     elizaLogger.log(
       `- Swarm Action Processing: ${
-        this.client.twitterConfig.ENABLE_TIMELINE_ACTION_PROCESSING
+        this.client.twitterConfig.ENABLE_SWARM_ACTION_PROCESSING
           ? "enabled"
           : "disabled"
       }`
