@@ -68,9 +68,18 @@ export class TwitterSearchClient {
 
   private engageWithSearchTermsLoop() {
     this.engageWithSearchTerms().then();
-    const randomMinutes = Math.floor(Math.random() * (120 - 60 + 1)) + 60;
+
+    const searchIntervalMin =
+      this.client.twitterConfig.TWITTER_SEARCH_INTERVAL_MIN;
+    const searchIntervalMax =
+      this.client.twitterConfig.TWITTER_SEARCH_INTERVAL_MAX;
+
+    const randomMinutes =
+      Math.floor(Math.random() * (searchIntervalMax - searchIntervalMin + 1)) +
+      searchIntervalMin;
+
     elizaLogger.log(
-      `Next twitter search scheduled in ${randomMinutes} minutes`
+      `Next twitter search scheduled in ${randomMinutes} minutes - randomized between ${searchIntervalMin} and ${searchIntervalMax} minutes`
     );
     setTimeout(
       () => this.engageWithSearchTermsLoop(),
@@ -94,7 +103,7 @@ export class TwitterSearchClient {
       if (topicSearchDisabled) {
         elizaLogger.log("Topic search is disabled");
       } else {
-        elizaLogger.log("Fetching search tweets");
+        elizaLogger.log("Fetching search tweets - search term:", searchTerm);
         // TODO: we wait 5 seconds here to avoid getting rate limited on startup, but we should queue
         await new Promise((resolve) => setTimeout(resolve, 5000));
         recentTweets = await this.client.fetchSearchTweets(
@@ -190,7 +199,10 @@ export class TwitterSearchClient {
         return;
       }
 
-      elizaLogger.log("Selected tweet to reply to:", selectedTweet?.text);
+      elizaLogger.log(
+        `Selected tweet to reply to [${selectedTweet?.id}]:`,
+        selectedTweet?.text
+      );
 
       // Generate a unique memory ID for the selected tweet using its ID and the agent's ID
       const memoryId = stringToUuid(

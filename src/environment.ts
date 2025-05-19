@@ -33,13 +33,15 @@ export const twitterEnvSchema = z.object({
   TWITTER_EMAIL: z.string().email("Valid X/Twitter email is required"),
   MAX_TWEET_LENGTH: z.number().int().default(DEFAULT_MAX_TWEET_LENGTH),
   TWITTER_SEARCH_ENABLE: z.boolean().default(false),
+  TWITTER_DISABLE_TOPIC_SEARCH: z.boolean().default(false),
+  TWITTER_DISABLE_TIMELINE_SEARCH: z.boolean().default(false),
+  TWITTER_SEARCH_INTERVAL_MIN: z.number().int(),
+  TWITTER_SEARCH_INTERVAL_MAX: z.number().int(),
   TWITTER_2FA_SECRET: z.string(),
   TWITTER_RETRY_LIMIT: z.number().int(),
   TWITTER_POLL_INTERVAL: z.number().int(),
   TWITTER_TARGET_USERS: z.array(twitterUsernameSchema).default([]),
   TWITTER_DISABLE_POST: z.boolean().default(false),
-  TWITTER_DISABLE_TOPIC_SEARCH: z.boolean().default(false),
-  TWITTER_DISABLE_TIMELINE_SEARCH: z.boolean().default(false),
   SWARM_SUPABASE_URL: z.string().optional(),
   SWARM_SUPABASE_ANON_KEY: z.string().optional(),
   SWARM_ACTOR_ID: z.string().optional(),
@@ -157,6 +159,18 @@ export async function validateTwitterConfig(
             process.env.TWITTER_SEARCH_ENABLE
         ) ?? false,
 
+      TWITTER_DISABLE_TOPIC_SEARCH:
+        parseBooleanFromText(
+          runtime.getSetting("TWITTER_DISABLE_TOPIC_SEARCH") ||
+            process.env.TWITTER_DISABLE_TOPIC_SEARCH
+        ) ?? false,
+
+      TWITTER_DISABLE_TIMELINE_SEARCH:
+        parseBooleanFromText(
+          runtime.getSetting("TWITTER_DISABLE_TIMELINE_SEARCH") ||
+            process.env.TWITTER_DISABLE_TIMELINE_SEARCH
+        ) ?? false,
+
       // string passthru
       TWITTER_2FA_SECRET:
         runtime.getSetting("TWITTER_2FA_SECRET") ||
@@ -177,6 +191,18 @@ export async function validateTwitterConfig(
         120 // 2m
       ),
 
+      TWITTER_SEARCH_INTERVAL_MIN: safeParseInt(
+        runtime.getSetting("TWITTER_SEARCH_INTERVAL_MIN") ||
+          process.env.TWITTER_SEARCH_INTERVAL_MIN,
+        60 // 60 minutes
+      ),
+
+      TWITTER_SEARCH_INTERVAL_MAX: safeParseInt(
+        runtime.getSetting("TWITTER_SEARCH_INTERVAL_MAX") ||
+          process.env.TWITTER_SEARCH_INTERVAL_MAX,
+        120 // 120 minutes
+      ),
+
       // comma separated string
       TWITTER_TARGET_USERS: parseTargetUsers(
         runtime.getSetting("TWITTER_TARGET_USERS") ||
@@ -187,18 +213,6 @@ export async function validateTwitterConfig(
         parseBooleanFromText(
           runtime.getSetting("TWITTER_DISABLE_POST") ||
             process.env.TWITTER_DISABLE_POST
-        ) ?? false,
-
-      TWITTER_DISABLE_TOPIC_SEARCH:
-        parseBooleanFromText(
-          runtime.getSetting("TWITTER_DISABLE_TOPIC_SEARCH") ||
-            process.env.TWITTER_DISABLE_TOPIC_SEARCH
-        ) ?? false,
-
-      TWITTER_DISABLE_TIMELINE_SEARCH:
-        parseBooleanFromText(
-          runtime.getSetting("TWITTER_DISABLE_TIMELINE_SEARCH") ||
-            process.env.TWITTER_DISABLE_TIMELINE_SEARCH
         ) ?? false,
 
       // bool

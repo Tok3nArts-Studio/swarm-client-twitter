@@ -174,20 +174,6 @@ export class TwitterPostClient {
       }`
     );
     elizaLogger.log(
-      `- Disable Topic Search: ${
-        this.client.twitterConfig.TWITTER_DISABLE_TOPIC_SEARCH
-          ? "enabled"
-          : "disabled"
-      }`
-    );
-    elizaLogger.log(
-      `- Disable Timeline Search: ${
-        this.client.twitterConfig.TWITTER_DISABLE_TIMELINE_SEARCH
-          ? "enabled"
-          : "disabled"
-      }`
-    );
-    elizaLogger.log(
       `- Enable Post: ${
         this.client.twitterConfig.ENABLE_TWITTER_POST_GENERATION
           ? "enabled"
@@ -222,6 +208,20 @@ export class TwitterPostClient {
     elizaLogger.log(
       `- Search Enabled: ${
         this.client.twitterConfig.TWITTER_SEARCH_ENABLE ? "enabled" : "disabled"
+      }`
+    );
+    elizaLogger.log(
+      `- Disable Topic Search: ${
+        this.client.twitterConfig.TWITTER_DISABLE_TOPIC_SEARCH
+          ? "enabled"
+          : "disabled"
+      }`
+    );
+    elizaLogger.log(
+      `- Disable Timeline Search: ${
+        this.client.twitterConfig.TWITTER_DISABLE_TIMELINE_SEARCH
+          ? "enabled"
+          : "disabled"
       }`
     );
     elizaLogger.log(`- Approval Provider: ${this.approvalProvider}`);

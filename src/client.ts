@@ -75,6 +75,8 @@ export const TwitterClientInterface: Client = {
     // Start the search logic if it exists
     if (manager.search) {
       await manager.search.start();
+    } else {
+      elizaLogger.log("Twitter search is disabled");
     }
 
     // Start interactions (mentions, replies)
