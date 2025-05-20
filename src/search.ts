@@ -1,5 +1,5 @@
 import { QueryTweetsResponse, SearchMode, Tweet } from "agent-twitter-client";
-import { composeContext, elizaLogger } from "@elizaos/core";
+import { composeContext, elizaLogger, Memory } from "@elizaos/core";
 import { generateMessageResponse, generateText } from "@elizaos/core";
 import { messageCompletionFooter } from "@elizaos/core";
 import {
@@ -343,7 +343,9 @@ export class TwitterSearchClient {
         `Bot would respond to tweet ${selectedTweet.id} with: ${response.text}`
       );
       try {
-        const callback: HandlerCallback = async (response: Content) => {
+        const callback: HandlerCallback = async (
+          response: Content
+        ): Promise<Memory[]> => {
           const memories = await sendTweet(
             this.client,
             response,
@@ -362,6 +364,25 @@ export class TwitterSearchClient {
           await this.runtime.messageManager.createMemory(
             responseMessage,
             false
+          );
+        }
+
+        if (
+          !this.client.twitterConfig.TWITTER_DISABLE_FOLLOW_AFTER_SEARCH_REPLY
+        ) {
+          try {
+            elizaLogger.log(
+              `Following user ${selectedTweet.username} after replying to their tweet`
+            );
+            await this.client.twitterClient.followUser(selectedTweet.username);
+          } catch (error) {
+            elizaLogger.error(
+              `Error following user ${selectedTweet.username} after replying to their tweet: ${error}`
+            );
+          }
+        } else {
+          elizaLogger.log(
+            `Skipping follow for user ${selectedTweet.username} after replying to their tweet`
           );
         }
 

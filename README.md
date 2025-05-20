@@ -43,6 +43,7 @@ TWITTER_TARGET_USERS=      # Comma-separated list of target users
 TWITTER_DISABLE_POST=false # Disable post generation
 TWITTER_DISABLE_TOPIC_SEARCH=false # Disable topic search
 TWITTER_DISABLE_TIMELINE_SEARCH=false # Disable timeline search
+TWITTER_DISABLE_FOLLOW_AFTER_SEARCH_REPLY=false # Disable following search result post author after replying
 
 # Post Generation Settings
 ENABLE_TWITTER_POST_GENERATION=true

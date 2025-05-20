@@ -35,6 +35,7 @@ export const twitterEnvSchema = z.object({
   TWITTER_SEARCH_ENABLE: z.boolean().default(false),
   TWITTER_DISABLE_TOPIC_SEARCH: z.boolean().default(false),
   TWITTER_DISABLE_TIMELINE_SEARCH: z.boolean().default(false),
+  TWITTER_DISABLE_FOLLOW_AFTER_SEARCH_REPLY: z.boolean().default(false),
   TWITTER_SEARCH_INTERVAL_MIN: z.number().int(),
   TWITTER_SEARCH_INTERVAL_MAX: z.number().int(),
   TWITTER_2FA_SECRET: z.string(),
@@ -169,6 +170,12 @@ export async function validateTwitterConfig(
         parseBooleanFromText(
           runtime.getSetting("TWITTER_DISABLE_TIMELINE_SEARCH") ||
             process.env.TWITTER_DISABLE_TIMELINE_SEARCH
+        ) ?? false,
+
+      TWITTER_DISABLE_FOLLOW_AFTER_SEARCH_REPLY:
+        parseBooleanFromText(
+          runtime.getSetting("TWITTER_DISABLE_FOLLOW_AFTER_SEARCH_REPLY") ||
+            process.env.TWITTER_DISABLE_FOLLOW_AFTER_SEARCH_REPLY
         ) ?? false,
 
       // string passthru
