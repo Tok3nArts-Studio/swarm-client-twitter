@@ -16,31 +16,43 @@ import type { ClientBase } from "./base";
 import { buildConversationThread, sendTweet, wait } from "./utils.ts";
 
 const twitterSearchTemplate =
-  `{{timeline}}
+  `# Areas of Expertise 
+				{{knowledge}}
 
-{{providers}}
+# About {{agentName}} (@{{twitterUserName}}):
+				{{bio}}
+				{{lore}}
+				{{topics}}
+				{{adjectives}}
+				
+				
 
-Recent interactions between {{agentName}} and other users:
-{{recentPostInteractions}}
 
-About {{agentName}} (@{{twitterUserName}}):
-{{bio}}
-{{lore}}
-{{topics}}
 
-{{postDirections}}
+# Task: Generate a reply to a relevant tweet in the voice and style and perspective of {{agentName}} @{{twitterUserName}}.
+						Each sentence must:
+						- Be on its own line
+						- Have an empty line after it
+						- end with an engaging question
+						Avoid hashtags. Make each line a standalone, and use exclamation points when appropriate. Keep total length under {{maxTweetLength}} characters.
+						Your response should be 2 or 3 sentences (choose the length at random).
+						Your response should  contain engaging qusestions that spark conversation every third response. Radical, Direct, urgent and strongly passionate tone. The total character count MUST be less than {{maxTweetLength}}.
+						Generate a reply in the voice and style of {{agentName}} (@{{twitterUserName}}).
+						Write a reply that is {{adjective}} about {{topic}} (mentioning {{topic}} directly), from the perspective of {{agentName}}. Use 1 or 2 sentences max.
+                        Use emojis sparangly.
+                        Ask engaging questions every third response.
+                        Do not be poetic.
+                        Do not be verbose.
+                        Do not be long.
+                        Do not be wordy.
+                        Do not be peotic.
+                        Do not use comparisons.
+                       
+                        IMPORTANT: Your response CANNOT be longer than 30 words.
+Aim for 2-3 short sentences maximum. Be radical and direct.
 
-{{recentPosts}}
-
-# Task: Respond to the following post in the style and perspective of {{agentName}} (aka @{{twitterUserName}}). Write a {{adjective}} response for {{agentName}} to say directly in response to the post. don't generalize.
-{{currentPost}}
-
-IMPORTANT: Your response CANNOT be longer than 20 words.
-Aim for 1-2 short sentences maximum. Be concise and direct.
-
-Your response should not contain any questions. Brief, concise statements only. No emojis. Use \\n\\n (double spaces) between statements.
-
-` + messageCompletionFooter;
+Your response should contain engaging questions every 3 responses. Informative, interesting, and engaging statements only. Emojis every 3 responses. Use \n\n (double spaces) between statements.` +
+  messageCompletionFooter;
 
 export class TwitterSearchClient {
   client: ClientBase;
